@@ -1,0 +1,85 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Service {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  leads Lead[]
+
+  @@map("services")
+}
+
+model Provider {
+  id             Int              @id @default(autoincrement())
+  name           String           @unique
+  monthlyQuota   Int              @default(10)
+  leadsReceived  Int              @default(0)
+  leadAssignments LeadAssignment[]
+  allocationState AllocationState?
+
+  @@map("providers")
+}
+
+model Lead {
+  id          Int              @id @default(autoincrement())
+  name        String
+  phone       String
+  city        String
+  description String
+  serviceId   Int
+  service     Service          @relation(fields: [serviceId], references: [id])
+  createdAt   DateTime         @default(now())
+  assignments LeadAssignment[]
+
+  @@unique([phone, serviceId])
+  @@map("leads")
+}
+
+model LeadAssignment {
+  id         Int      @id @default(autoincrement())
+  leadId     Int
+  providerId Int
+  assignedAt DateTime @default(now())
+  lead       Lead     @relation(fields: [leadId], references: [id])
+  provider   Provider @relation(fields: [providerId], references: [id])
+
+  @@unique([leadId, providerId])
+  @@map("lead_assignments")
+}
+
+// Persists fair allocation state (round-robin pointer) per service pool
+model AllocationState {
+  id         Int      @id @default(autoincrement())
+  serviceId  Int
+  providerId Int      @unique
+  lastIndex  Int      @default(0) // last position used in this provider's pool
+  provider   Provider @relation(fields: [providerId], references: [id])
+
+  @@map("allocation_states")
+}
+
+// Tracks global round-robin pointer per service pool
+model ServiceAllocationPointer {
+  id        Int @id @default(autoincrement())
+  serviceId Int @unique
+  pointer   Int @default(0) // index in the optional pool array
+
+  @@map("service_allocation_pointers")
+}
+
+// Idempotency keys for webhook calls
+model WebhookEvent {
+  id             Int      @id @default(autoincrement())
+  idempotencyKey String   @unique
+  eventType      String
+  processedAt    DateTime @default(now())
+
+  @@map("webhook_events")
+}
