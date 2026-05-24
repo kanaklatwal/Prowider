@@ -1,8 +1,8 @@
 // app/api/sse/route.ts
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { sseBus } from '@/lib/sse';
 
-export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
